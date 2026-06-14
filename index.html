@@ -1,0 +1,2797 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Odoo AI Assistant — ERP Agent</title>
+  <meta name="description" content="AI-powered ERP assistant for Senior Accountants. Chat in Arabic or English to query your Odoo instance." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Prop-Types (required by Recharts UMD) -->
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <!-- Recharts CDN -->
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <!-- SheetJS CDN -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            noto: ['Noto Sans Arabic', 'sans-serif'],
+          },
+          colors: {
+            odoo: {
+              bgPrimary: '#1a1a2e',      /* main background */
+              bgSecondary: '#16213e',    /* sidebar background */
+              bgCard: '#0f3460',         /* cards & panels */
+              bgHover: '#533483',        /* hover states */
+              purple: '#875a7b',         /* Odoo signature purple */
+              purpleLight: '#a06090',    /* lighter purple accent */
+              textPrimary: '#ffffff',    /* main text */
+              textSecondary: '#c0c0c0',  /* secondary text */
+              textMuted: '#888888',      /* muted/placeholder */
+              border: '#2d2d4e',         /* borders & dividers */
+              success: '#00a09d',        /* teal/success (Odoo green) */
+              warning: '#f0ad4e',        /* warning amber */
+              danger: '#e74c3c',         /* danger red */
+              info: '#3498db',           /* info blue */
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', 'Noto Sans Arabic', sans-serif; background: #1a1a2e; color: #ffffff; overflow: hidden; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1a2e; }
+    ::-webkit-scrollbar-thumb { background: #875a7b; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a06090; }
+
+    /* Odoo cards & panels */
+    .odoo-card, .glass-card {
+      background: #0f3460;
+      border: 1px solid #2d2d4e;
+    }
+    .odoo-card-light, .glass-card-light {
+      background: #16213e;
+      border: 1px solid #2d2d4e;
+    }
+
+    /* Pulse dot animation */
+    .pulse-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Message animations */
+    .msg-enter {
+      animation: msgSlideIn 0.3s ease-out;
+    }
+    @keyframes msgSlideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Typing animation */
+    .typing-dot {
+      animation: typingBounce 1.4s ease-in-out infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Sidebar menu items */
+    .sidebar-item {
+      transition: all 0.2s ease;
+    }
+    .sidebar-item:hover {
+      background: #533483;
+    }
+    .sidebar-item.active {
+      background: rgba(135, 90, 123, 0.2);
+      border-left: 3px solid #875a7b;
+    }
+
+    /* Stats card hover (Odoo style) */
+    .stat-card {
+      transition: all 0.2s ease;
+      border-left: 4px solid #875a7b;
+    }
+    .stat-card:hover {
+      transform: scale(1.02);
+      background: #133b68 !important;
+      box-shadow: 0 0 15px rgba(135, 90, 123, 0.35);
+    }
+
+    /* Table styling */
+    .data-table th {
+      background: #2d2d4e;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .data-table tr:hover td {
+      background: rgba(135, 90, 123, 0.1);
+    }
+    .data-table tbody tr {
+      animation: trFadeIn 0.25s ease-out both;
+    }
+    .data-table tbody tr:nth-child(1) { animation-delay: 0.03s; }
+    .data-table tbody tr:nth-child(2) { animation-delay: 0.06s; }
+    .data-table tbody tr:nth-child(3) { animation-delay: 0.09s; }
+    .data-table tbody tr:nth-child(4) { animation-delay: 0.12s; }
+    .data-table tbody tr:nth-child(5) { animation-delay: 0.15s; }
+    .data-table tbody tr:nth-child(n+6) { animation-delay: 0.18s; }
+
+    @keyframes trFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* RTL support */
+    [dir="rtl"] { font-family: 'Noto Sans Arabic', 'Inter', sans-serif; }
+    [dir="rtl"] .sidebar-item.active { border-left: none; border-right: 3px solid #875a7b; }
+
+    /* Fade in */
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Shimmer loading */
+    .shimmer {
+      background: linear-gradient(90deg, rgba(22,33,62,0.4) 25%, rgba(22,33,62,0.8) 50%, rgba(22,33,62,0.4) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    /* Input focus glow */
+    .input-glow:focus {
+      box-shadow: 0 0 0 3px rgba(135, 90, 123, 0.5);
+    }
+
+    @media print {
+      body { background: #1a1a2e !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      aside, header, button, select, input, label, form, .no-print { display: none !important; }
+      main { padding: 0 !important; margin: 0 !important; background: #1a1a2e !important; width: 100% !important; max-width: 100% !important; overflow: visible !important; }
+      .odoo-card, .odoo-card-light { background: #0f3460 !important; color: #ffffff !important; border: 1px solid #2d2d4e !important; page-break-inside: avoid; }
+      .recharts-responsive-container { width: 100% !important; height: 300px !important; }
+      h1, h2, h3 { color: white !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+    const {
+      BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+      PieChart, Pie, Cell, LineChart, Line, Legend, Area, AreaChart
+    } = Recharts;
+
+    // ─── Global Export Helpers ───────────────────────────────────────────
+    function exportToExcel(data, reportTitle) {
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Report");
+      const safeTitle = reportTitle.replace(/[\/\\:*?"<>|]/g, "").replace(/\s+/g, "-");
+      XLSX.writeFile(wb, `Odoo-Report-${safeTitle}-${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function exportToCSV(data, reportTitle) {
+      const headers = Object.keys(data[0]).join(",");
+      const rows = data.map(row => Object.values(row).map(val => 
+        `"${String(val ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + headers + "\n" + rows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeTitle = reportTitle.replace(/[\/\\:*?"<>|]/g, "").replace(/\s+/g, "-");
+      a.download = `Odoo-Report-${safeTitle}-${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportDashboardExcel(salesData, invoicesData, customersData, productsData, kpiSummary) {
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesData), "Sales Orders");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(invoicesData), "Invoices");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(customersData), "Top Customers");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(productsData), "Products");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(kpiSummary), "Dashboard Summary");
+      XLSX.writeFile(wb, `Odoo-Dashboard-${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+
+    // =========================================================================
+    // CORS NOTE:
+    // Since this runs from a browser calling a different domain (Odoo server),
+    // the Odoo instance MUST allow CORS from this app's origin, OR a small
+    // proxy/server-side route is needed to forward requests (to avoid CORS and
+    // keep credentials off the client).
+    //
+    // All Odoo calls go through callOdoo() so it's easy to swap to a
+    // server-side proxy later. If CORS blocks calls, the real error is shown
+    // in the UI — no mock data fallback.
+    // =========================================================================
+
+    // ─── Odoo Configuration ──────────────────────────────────────────────
+    // Load config from localStorage, or return default settings
+    function loadConnectionSettings() {
+      const saved = localStorage.getItem('odoo_connection_settings');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error('Error parsing saved connection settings', e);
+        }
+      }
+      // No saved credentials — return empty defaults so the login form shows
+      return {
+        url: '',
+        login: '',
+        password: '',
+        db: '', // empty means auto-detect
+        anthropicApiKey: '', // empty means local regex fallback
+      };
+    }
+
+    // Derive a short company name from the Odoo URL for display
+    function getCompanyName() {
+      try {
+        const u = new URL(currentConfig.url);
+        const host = u.hostname.split('.')[0];
+        // Convert kebab-case to title case, strip trailing hash IDs
+        return host
+          .replace(/-last-test-acc-\w+$/i, '')
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, c => c.toUpperCase()) || 'Odoo ERP';
+      } catch {
+        return 'Odoo ERP';
+      }
+    }
+
+    function saveConnectionSettings(settings) {
+      localStorage.setItem('odoo_connection_settings', JSON.stringify(settings));
+    }
+
+    // Global connection settings reference
+    let currentConfig = loadConnectionSettings();
+    const PROXY_URL = 'http://localhost:3001';
+
+    // ─── Odoo Connector Service ──────────────────────────────────────────
+    let sessionInfo = { uid: null, sessionId: null, userName: '', db: '' };
+    let useProxy = false; // set to true if local proxy is reachable
+
+    // Probe the local CORS proxy on startup
+    async function detectProxy() {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 1500);
+        await fetch(PROXY_URL + '/web/session/check', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Odoo-Target-Url': currentConfig.url
+          },
+          body: '{"jsonrpc":"2.0","method":"call","params":{}}',
+          signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        useProxy = true;
+        console.log('[OdooConnector] ✓ Local CORS proxy detected at ' + PROXY_URL);
+      } catch {
+        useProxy = false;
+        console.log('[OdooConnector] No local proxy — will call Odoo directly (needs CORS)');
+      }
+    }
+
+    async function callOdoo(endpoint, payload) {
+      const baseUrl = useProxy ? PROXY_URL : currentConfig.url;
+      const headers = { 'Content-Type': 'application/json' };
+      if (useProxy) {
+        headers['X-Odoo-Target-Url'] = currentConfig.url;
+      }
+      const res = await fetch(`${baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: headers,
+        credentials: useProxy ? 'omit' : 'include', // proxy handles cookies
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.error) {
+        const msg = data.error.data?.message || data.error.message || JSON.stringify(data.error);
+        throw new Error(msg);
+      }
+      return data.result;
+    }
+
+    async function authenticate(totpCode = null) {
+      await detectProxy(); // check if local CORS proxy is running
+
+      // Step 1: Discover database name automatically if not specified
+      let dbList = [];
+      if (currentConfig.db) {
+        dbList = [currentConfig.db];
+      } else {
+        // Derive from URL subdomain as candidate
+        let subdomain = '';
+        try {
+          const u = new URL(currentConfig.url);
+          const parts = u.hostname.split('.');
+          if (parts.length > 2) subdomain = parts[0];
+        } catch {}
+        dbList = subdomain ? [subdomain] : [];
+      }
+
+      try {
+        const dbResult = await callOdoo('/web/database/list', {
+          jsonrpc: '2.0', method: 'call', id: 0, params: {},
+        });
+        if (Array.isArray(dbResult) && dbResult.length > 0) {
+          dbList = [...new Set([...dbResult, ...dbList])];
+          console.log('[OdooConnector] Discovered databases:', dbResult);
+        }
+      } catch (e) {
+        console.warn('[OdooConnector] Could not fetch db list, using candidates:', e.message);
+      }
+
+      // Step 2: Try standard JSON-RPC auth first (works if no TOTP)
+      let lastError = null;
+      let detectedDb = dbList.find(d => d) || dbList[0]; // first non-empty
+      for (const db of dbList) {
+        if (!db) continue;
+        detectedDb = db;
+        try {
+          const result = await callOdoo('/web/session/authenticate', {
+            jsonrpc: '2.0', method: 'call', id: 1,
+            params: { db, login: currentConfig.login, password: currentConfig.password },
+          });
+          if (result && result.uid) {
+            sessionInfo = {
+              uid: result.uid,
+              sessionId: result.session_id || '',
+              userName: result.name || result.username || currentConfig.login,
+              db: db || result.db || 'auto',
+            };
+            console.log('[OdooConnector] ✓ Authenticated (no TOTP) as', sessionInfo.userName);
+            return { success: true, ...sessionInfo };
+          }
+          // uid null — probably TOTP
+          lastError = new Error('TOTP_LIKELY');
+          break; // credentials matched right DB
+        } catch (e) {
+          lastError = e;
+          if (e.message.includes('not found') || e.message.includes('database')) continue;
+        }
+      }
+
+      // Step 3: If proxy is available and we suspect TOTP, use the web login flow
+      if (useProxy) {
+        console.log('[OdooConnector] Trying TOTP web login via proxy...');
+        try {
+          const payload = {
+            odoo_url: currentConfig.url,
+            db: detectedDb,
+            login: currentConfig.login,
+            password: currentConfig.password,
+          };
+          if (totpCode) payload.totp_code = totpCode;
+
+          const res = await fetch(`${PROXY_URL}/proxy/login-totp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+
+          // Check if TOTP is required (no code was given)
+          if (data.result && data.result.totp_required) {
+            return { success: false, totp_required: true, message: data.result.message };
+          }
+
+          // Check for auth error
+          if (data.error) {
+            throw new Error(data.error.message || 'TOTP login failed');
+          }
+
+          // Check for successful session
+          if (data.result && data.result.uid) {
+            sessionInfo = {
+              uid: data.result.uid,
+              sessionId: data.result.session_id || '',
+              userName: data.result.name || data.result.username || currentConfig.login,
+              db: detectedDb,
+            };
+            console.log('[OdooConnector] ✓ Authenticated via TOTP as', sessionInfo.userName);
+            return { success: true, ...sessionInfo };
+          }
+
+          if (!totpCode) {
+            return { success: false, totp_required: true, message: 'Two-Factor Authentication detected. Please enter your 6-digit code.' };
+          }
+
+          throw new Error('Authentication failed after TOTP. Check your code and try again.');
+        } catch (e) {
+          if (e.message.includes('TOTP') || (e.message && !e.message.includes('fetch'))) throw e;
+          lastError = e;
+        }
+      }
+
+      throw new Error(
+        lastError?.message || 'Authentication failed'
+      );
+    }
+
+    async function odooCallKw(model, method, args = [], kwargs = {}) {
+      return callOdoo('/web/dataset/call_kw', {
+        jsonrpc: '2.0',
+        method: 'call',
+        id: 2,
+        params: { model, method, args, kwargs },
+      });
+    }
+
+    async function searchRecords(model, domain = [], fields = [], limit = 80, order = '') {
+      return odooCallKw(model, 'search_read', [domain], { fields, limit, order });
+    }
+
+    async function fetchAllRecords(model, domain = [], fields = [], order = '') {
+      let allRecords = [];
+      let offset = 0;
+      const pageSize = 100;
+      
+      while (true) {
+        const batch = await odooCallKw(model, 'search_read', [domain], {
+          fields: fields,
+          limit: pageSize,
+          offset: offset,
+          order: order
+        });
+        
+        allRecords = [...allRecords, ...batch];
+        if (batch.length < pageSize) break; // no more records
+        offset += pageSize;
+      }
+      
+      return allRecords;
+    }
+
+    async function createRecord(model, values) {
+      return odooCallKw(model, 'create', [values]);
+    }
+
+    async function updateRecord(model, ids, values) {
+      return odooCallKw(model, 'write', [ids, values]);
+    }
+
+    async function readGroup(model, domain, fields, groupby) {
+      return odooCallKw(model, 'read_group', [domain, fields, groupby]);
+    }
+
+    // ─── Query Interpreter (Arabic + English) ───────────────────────────
+    function interpretQuery(text) {
+      const t = text.toLowerCase().trim();
+
+      // ── Sales invoices / فواتير المبيعات ──
+      if (/فواتير.*مبيعات|فواتير البيع|sales?\s*invoic/i.test(text)) {
+        return {
+          model: 'account.move',
+          domain: [['move_type', '=', 'out_invoice']],
+          fields: ['name', 'partner_id', 'invoice_date', 'amount_total', 'payment_state', 'state'],
+          label: 'Sales Invoices / فواتير المبيعات',
+        };
+      }
+      // ── Purchase invoices / فواتير المشتريات ──
+      if (/فواتير.*مشتريات|فواتير الشراء|purchase\s*invoic/i.test(text)) {
+        return {
+          model: 'account.move',
+          domain: [['move_type', '=', 'in_invoice']],
+          fields: ['name', 'partner_id', 'invoice_date', 'amount_total', 'payment_state', 'state'],
+          label: 'Purchase Invoices / فواتير المشتريات',
+        };
+      }
+      // ── Unpaid invoices / الفواتير اللي لسه متدفعتش ──
+      if (/متدفع|غير مدفوع|unpaid|not\s*paid|لسه|مش مدفوع/i.test(text)) {
+        return {
+          model: 'account.move',
+          domain: [['move_type', 'in', ['out_invoice', 'in_invoice']], ['payment_state', '!=', 'paid'], ['state', '=', 'posted']],
+          fields: ['name', 'partner_id', 'invoice_date', 'amount_total', 'payment_state', 'state', 'move_type'],
+          label: 'Unpaid Invoices / فواتير غير مدفوعة',
+        };
+      }
+      // ── All invoices / كل الفواتير ──
+      if (/فواتير|invoic/i.test(text)) {
+        return {
+          model: 'account.move',
+          domain: [['move_type', 'in', ['out_invoice', 'in_invoice']]],
+          fields: ['name', 'partner_id', 'invoice_date', 'amount_total', 'payment_state', 'state', 'move_type'],
+          label: 'All Invoices / كل الفواتير',
+        };
+      }
+      // ── Top customers / أكبر عملاء ──
+      if (/أكبر.*عم[لي]|top.*customer|best.*customer/i.test(text)) {
+        const match = text.match(/(\d+)/);
+        const limit = match ? parseInt(match[1]) : 10;
+        return {
+          model: 'res.partner',
+          domain: [['customer_rank', '>', 0]],
+          fields: ['name', 'email', 'phone', 'customer_rank'],
+          limit,
+          order: 'customer_rank desc',
+          label: `Top ${limit} Customers / أكبر ${limit} عملاء`,
+        };
+      }
+      // ── Customers / العملاء ──
+      if (/عملاء|عميل|customer/i.test(text)) {
+        return {
+          model: 'res.partner',
+          domain: [['customer_rank', '>', 0]],
+          fields: ['name', 'email', 'phone', 'customer_rank'],
+          label: 'Customers / العملاء',
+        };
+      }
+      // ── Vendors / الموردين ──
+      if (/مورد|موردين|vendor|supplier/i.test(text)) {
+        return {
+          model: 'res.partner',
+          domain: [['supplier_rank', '>', 0]],
+          fields: ['name', 'email', 'phone', 'supplier_rank'],
+          label: 'Vendors / الموردين',
+        };
+      }
+      // ── This month's sales / مبيعات الشهر ──
+      if (/مبيعات.*شهر|مبيعات.*الشهر|sales?\s*this\s*month|this\s*month.*sales?|monthly\s*sales/i.test(text)) {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const start = `${y}-${m}-01`;
+        const endD = new Date(y, now.getMonth() + 1, 0);
+        const end = `${y}-${m}-${String(endD.getDate()).padStart(2, '0')}`;
+        return {
+          model: 'sale.order',
+          domain: [['date_order', '>=', start], ['date_order', '<=', end], ['state', '=', 'sale']],
+          fields: ['name', 'partner_id', 'date_order', 'amount_total', 'state'],
+          label: `Sales This Month (${y}-${m}) / مبيعات الشهر`,
+        };
+      }
+      // ── Sales orders / أوامر البيع ──
+      if (/مبيعات|بيع|sale|order/i.test(text)) {
+        return {
+          model: 'sale.order',
+          domain: [],
+          fields: ['name', 'partner_id', 'date_order', 'amount_total', 'state'],
+          label: 'Sales Orders / أوامر البيع',
+        };
+      }
+      // ── Products / المنتجات ──
+      if (/منتج|منتجات|product/i.test(text)) {
+        return {
+          model: 'product.product',
+          domain: [],
+          fields: ['name', 'list_price', 'qty_available'],
+          label: 'Products / المنتجات',
+        };
+      }
+      // ── Purchase orders / أوامر الشراء ──
+      if (/أوامر.*شراء|امر.*شراء|purchase.*order/i.test(text)) {
+        return {
+          model: 'purchase.order',
+          domain: [['state', 'in', ['purchase', 'done']]],
+          fields: ['name', 'partner_id', 'date_order', 'amount_total', 'state'],
+          label: 'Purchase Orders / أوامر الشراء',
+        };
+      }
+      // ── Stock value / قيمة المخزون ──
+      if (/قيمة.*مخزون|مخزون|stock|inventory/i.test(text)) {
+        return {
+          model: 'product.product',
+          domain: [['qty_available', '>', 0]],
+          fields: ['name', 'qty_available', 'standard_price', 'list_price'],
+          label: 'Products In Stock / المنتجات في المخزن',
+        };
+      }
+      // ── Overdue invoices / الفواتير المتأخرة ──
+      if (/مستحقة|متأخر|overdue/i.test(text)) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        return {
+          model: 'account.move',
+          domain: [
+            ['move_type', '=', 'out_invoice'],
+            ['state', '=', 'posted'],
+            ['payment_state', '!=', 'paid'],
+            ['invoice_date_due', '<', todayStr]
+          ],
+          fields: ['name', 'partner_id', 'invoice_date', 'invoice_date_due', 'amount_total', 'payment_state'],
+          label: 'Overdue Invoices / الفواتير المتأخرة',
+        };
+      }
+      // ── Journal entries / قيود يومية ──
+      if (/قيود|journal\s*entr/i.test(text)) {
+        return {
+          model: 'account.move',
+          domain: [['move_type', '=', 'entry']],
+          fields: ['name', 'date', 'amount_total', 'state'],
+          label: 'Journal Entries / القيود اليومية',
+        };
+      }
+      // ── POS sales today ──
+      if (/كاشير.*يوم|تقرير.*pos.*يوم|pos\s*sales?\s*today|cashier\s*sales?\s*today/i.test(text)) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        return {
+          model: 'pos.order',
+          domain: [['state', 'in', ['paid', 'done', 'invoiced']], ['date_order', '>=', `${todayStr} 00:00:00`]],
+          fields: ['name', 'date_order', 'amount_total', 'partner_id', 'state', 'session_id', 'pos_reference'],
+          label: 'POS Sales Today / تقرير مبيعات الكاشير اليومي',
+        };
+      }
+      // ── POS sales this week ──
+      if (/كاشير.*أسبوع|تقرير.*pos.*أسبوع|pos\s*sales?\s*this\s*week|cashier\s*sales?\s*this\s*week/i.test(text)) {
+        const now = new Date();
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(now.setDate(diff));
+        startOfWeek.setHours(0,0,0,0);
+        const startStr = startOfWeek.toISOString().slice(0, 10) + ' 00:00:00';
+        return {
+          model: 'pos.order',
+          domain: [['state', 'in', ['paid', 'done', 'invoiced']], ['date_order', '>=', startStr]],
+          fields: ['name', 'date_order', 'amount_total', 'partner_id', 'state', 'session_id', 'pos_reference'],
+          label: 'POS Sales This Week / مبيعات الكاشير الأسبوع ده',
+        };
+      }
+      // ── POS sales this month ──
+      if (/تقرير.*pos.*شهر|كاشير.*شهر|pos\s*sales?\s*this\s*month|cashier\s*sales?\s*this\s*month/i.test(text)) {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startStr = startOfMonth.toISOString().slice(0, 10) + ' 00:00:00';
+        return {
+          model: 'pos.order',
+          domain: [['state', 'in', ['paid', 'done', 'invoiced']], ['date_order', '>=', startStr]],
+          fields: ['name', 'date_order', 'amount_total', 'partner_id', 'state', 'session_id', 'pos_reference'],
+          label: 'POS Sales This Month / تقرير مبيعات الكاشير الشهر ده',
+        };
+      }
+      // ── POS sales this quarter ──
+      if (/كاشير.*ربع|تقرير.*pos.*ربع|pos\s*sales?\s*this\s*quarter|cashier\s*sales?\s*this\s*quarter/i.test(text)) {
+        const now = new Date();
+        const q = Math.floor(now.getMonth() / 3);
+        const startOfQuarter = new Date(now.getFullYear(), q * 3, 1);
+        const startStr = startOfQuarter.toISOString().slice(0, 10) + ' 00:00:00';
+        return {
+          model: 'pos.order',
+          domain: [['state', 'in', ['paid', 'done', 'invoiced']], ['date_order', '>=', startStr]],
+          fields: ['name', 'date_order', 'amount_total', 'partner_id', 'state', 'session_id', 'pos_reference'],
+          label: 'POS Sales This Quarter / مبيعات الكاشير للربع الحالي',
+        };
+      }
+      // ── Fallback ──
+      return null;
+    }
+
+    function isArabic(text) {
+      return /[\u0600-\u06FF]/.test(text);
+    }
+
+    // ─── Icons (inline SVG) ──────────────────────────────────────────────
+    const Icons = {
+      chat: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+      dashboard: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+        </svg>
+      ),
+      connection: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.288 15.038a5.25 5.25 0 010-7.424M5.106 18.22a8.25 8.25 0 010-13.09M15.712 8.962a5.25 5.25 0 010 7.424M18.894 5.78a8.25 8.25 0 010 13.09" />
+        </svg>
+      ),
+      send: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
+      ),
+      user: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+        </svg>
+      ),
+      bot: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.456-2.456L14.25 6l1.035-.259a3.375 3.375 0 002.456-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+        </svg>
+      ),
+      refresh: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      ),
+      warning: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      ),
+      pos: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      ),
+    };
+
+    // ─── Data Table Component ────────────────────────────────────────────
+    function DataTable({ data, title, rtl, modelName, currency }) {
+      const [sortCol, setSortCol] = useState(null);
+      const [sortAsc, setSortAsc] = useState(true);
+
+      if (!data || data.length === 0) return null;
+
+      const columns = Object.keys(data[0]).filter(k => k !== 'id' && !k.startsWith('__'));
+
+      const sorted = useMemo(() => {
+        if (!sortCol) return data;
+        return [...data].sort((a, b) => {
+          let va = a[sortCol], vb = b[sortCol];
+          if (Array.isArray(va)) va = va[1] || va[0];
+          if (Array.isArray(vb)) vb = vb[1] || vb[0];
+          if (typeof va === 'number' && typeof vb === 'number') return sortAsc ? va - vb : vb - va;
+          va = String(va || ''); vb = String(vb || '');
+          return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        });
+      }, [data, sortCol, sortAsc]);
+
+      const handleSort = (col) => {
+        if (sortCol === col) setSortAsc(!sortAsc);
+        else { setSortCol(col); setSortAsc(true); }
+      };
+
+      const formatValue = (v, col) => {
+        if (v === null || v === undefined || v === false) return '—';
+        if (Array.isArray(v)) return v[1] || v[0] || '—';
+        if (typeof v === 'number') {
+          const isAmt = col && (col.includes('amount') || col.includes('price') || col.includes('value') || col.includes('total'));
+          if (isAmt && currency === 'USD') {
+            return (v / 50).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+          }
+          if (isAmt) {
+            return `${v.toLocaleString(undefined, { minimumFractionDigits: 2 })} EGP`;
+          }
+          return v.toLocaleString();
+        }
+        return String(v);
+      };
+
+      const formatHeader = (h) => {
+        return h.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      };
+
+      const cleanDataForExport = (rawArray) => {
+        return rawArray.map(row => {
+          const newRow = {};
+          Object.entries(row).forEach(([key, val]) => {
+            if (key === 'id' || key.startsWith('__')) return;
+            if (Array.isArray(val)) {
+              newRow[key] = val[1] || val[0] || '';
+            } else if (val === null || val === undefined || val === false) {
+              newRow[key] = '';
+            } else {
+              newRow[key] = val;
+            }
+          });
+          return newRow;
+        });
+      };
+
+      const getFilenamePrefix = () => {
+        if (!modelName) return 'Report';
+        if (modelName === 'sale.order') return 'SalesOrders';
+        if (modelName === 'account.move') return 'Invoices';
+        if (modelName === 'res.partner') return 'Customers';
+        if (modelName === 'product.product') return 'Products';
+        if (modelName === 'purchase.order') return 'PurchaseOrders';
+        if (modelName === 'pos.order') return 'POS-Orders';
+        return modelName.replace(/\./g, '_');
+      };
+
+      const handleExportExcel = () => {
+        const cleanData = cleanDataForExport(data);
+        const reportTitle = title || getFilenamePrefix();
+        exportToExcel(cleanData, reportTitle);
+      };
+
+      const handleExportCSV = () => {
+        const cleanData = cleanDataForExport(data);
+        const reportTitle = title || getFilenamePrefix();
+        exportToCSV(cleanData, reportTitle);
+      };
+
+      return (
+        <div className="mt-3 rounded-xl overflow-hidden border border-odoo-border" dir={rtl ? 'rtl' : 'ltr'}>
+          {title && (
+            <div className="px-4 py-2.5 bg-odoo-bgSecondary border-b border-odoo-border flex items-center justify-between">
+              <div>
+                <span className="text-sm font-semibold text-odoo-purpleLight">{title}</span>
+                <span className="text-xs text-odoo-textSecondary ml-3">({data.length} records)</span>
+              </div>
+            </div>
+          )}
+          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <table className="data-table w-full text-sm">
+              <thead>
+                <tr>
+                  {columns.map(col => (
+                    <th
+                      key={col}
+                      onClick={() => handleSort(col)}
+                      className="px-4 py-2.5 text-left rtl:text-right text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider cursor-pointer hover:text-white transition-colors select-none whitespace-nowrap"
+                    >
+                      {formatHeader(col)}
+                      {sortCol === col && (
+                        <span className="ml-1 text-odoo-purpleLight">{sortAsc ? '↑' : '↓'}</span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-odoo-border">
+                {sorted.map((row, i) => (
+                  <tr key={row.id || i} className={`${i % 2 === 0 ? 'bg-[#16213e]' : 'bg-[#0f3460]'} transition-colors`}>
+                    {columns.map(col => (
+                      <td key={col} className="px-4 py-2 text-white whitespace-nowrap">
+                        {col === 'payment_state' || col === 'state' ? (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                            String(row[col]).toLowerCase() === 'draft' ? 'bg-[#2d2d4e]/40 text-[#c0c0c0] border-[#2d2d4e]' :
+                            ['sale', 'confirmed', 'done'].includes(String(row[col]).toLowerCase()) ? 'bg-[#00a09d]/20 text-[#00a09d] border-[#00a09d]/40' :
+                            String(row[col]).toLowerCase() === 'posted' ? 'bg-[#3498db]/20 text-[#3498db] border-[#3498db]/40' :
+                            String(row[col]).toLowerCase() === 'paid' ? 'bg-[#00a09d]/25 text-[#00a09d] border-[#00a09d]/40' :
+                            String(row[col]).toLowerCase() === 'not_paid' ? 'bg-[#e74c3c]/20 text-[#e74c3c] border-[#e74c3c]/40' :
+                            ['cancel', 'cancelled'].includes(String(row[col]).toLowerCase()) ? 'bg-[#7a1c1c]/25 text-[#e74c3c] border-[#e74c3c]/40' :
+                            'bg-[#16213e] text-[#c0c0c0] border-[#2d2d4e]'
+                          }`}>
+                            {formatValue(row[col], col)}
+                          </span>
+                        ) : col && (col.includes('amount') || col.includes('price') || col.includes('value') || col.includes('total')) ? (
+                          <span className="font-mono text-odoo-warning font-semibold">{formatValue(row[col], col)}</span>
+                        ) : (
+                          formatValue(row[col], col)
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-2 p-2 bg-odoo-bgSecondary border-t border-odoo-border no-print">
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-odoo-purple text-odoo-purple hover:bg-odoo-purple hover:text-white text-xs font-semibold transition-all duration-200 hover:scale-[1.02]"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export Excel (.xlsx)
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-odoo-purpleLight text-odoo-purpleLight hover:bg-odoo-purpleLight hover:text-white text-xs font-semibold transition-all duration-200 hover:scale-[1.02]"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              Export CSV (.csv)
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Stats Card ──────────────────────────────────────────────────────
+    function StatCard({ title, value, subtitle, icon, color, loading }) {
+      const borderMap = {
+        teal: 'border-l-4 border-l-odoo-success border-r border-y border-odoo-border',
+        blue: 'border-l-4 border-l-odoo-info border-r border-y border-odoo-border',
+        gold: 'border-l-4 border-l-odoo-warning border-r border-y border-odoo-border',
+        coral: 'border-l-4 border-l-odoo-danger border-r border-y border-odoo-border',
+      };
+      
+      const iconColor = 'text-odoo-textMuted';
+
+      return (
+        <div className={`stat-card bg-[#0f3460] rounded-xl p-5 transition-all duration-200 cursor-pointer ${borderMap[color] || borderMap.teal}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-odoo-textSecondary">{title}</span>
+            <span className={iconColor}>{icon}</span>
+          </div>
+          {loading ? (
+            <div className="h-8 w-24 shimmer rounded-lg" />
+          ) : (
+            <>
+              <div className="text-3xl font-bold text-white">{value}</div>
+              {subtitle && <div className="text-xs text-odoo-textSecondary mt-1">{subtitle}</div>}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ─── Dashboard Component ─────────────────────────────────────────────
+    function Dashboard({ connected, onTriggerChat, currency, setCurrency }) {
+      const [stats, setStats] = useState({
+        salesCount: null, salesTotal: null,
+        unpaidCount: null, unpaidTotal: null,
+        customerCount: null, productCount: null,
+        purchaseCount: null, purchaseTotal: null,
+        stockValue: null,
+        overdueCount: null, overdueTotal: null
+      });
+      const [topCustomers, setTopCustomers] = useState([]);
+      const [recentInvoices, setRecentInvoices] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      // Pre-fetched raw datasets for Excel export
+      const [rawSales, setRawSales] = useState([]);
+      const [rawInvoices, setRawInvoices] = useState([]);
+      const [rawCustomers, setRawCustomers] = useState([]);
+      const [rawProducts, setRawProducts] = useState([]);
+      const [dashboardDataLoading, setDashboardDataLoading] = useState(true);
+
+      // Customization Panel States
+      const [datePreset, setDatePreset] = useState('This Month');
+      const getInitDates = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const start = `${y}-${m}-01`;
+        const end = `${y}-${m}-${String(new Date(y, now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+        return { start, end };
+      };
+      const initDates = getInitDates();
+      const [customStartDate, setCustomStartDate] = useState(initDates.start);
+      const [customEndDate, setCustomEndDate] = useState(initDates.end);
+
+      const [visibleCards, setVisibleCards] = useState({
+        sales: true,
+        invoices: true,
+        customers: true,
+        products: true
+      });
+      const [customerChartType, setCustomerChartType] = useState('Bar'); // Bar | Line | Pie | Donut
+      const [invoiceChartType, setInvoiceChartType] = useState('Pie'); // Bar | Line | Pie | Donut
+      const [addedWidgets, setAddedWidgets] = useState([]); // 'purchase_orders', 'stock_value', 'overdue_invoices'
+      const [showAddWidgetDropdown, setShowAddWidgetDropdown] = useState(false);
+
+      // Helper to calculate date range preset
+      const calculateDateRange = useCallback((preset, startStr, endStr) => {
+        const now = new Date();
+        let start = new Date();
+        let end = new Date();
+        
+        switch (preset) {
+          case 'This Week': {
+            const currentDay = now.getDay();
+            const distance = currentDay === 0 ? 6 : currentDay - 1;
+            start = new Date(now);
+            start.setDate(now.getDate() - distance);
+            start.setHours(0,0,0,0);
+            
+            end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            end.setHours(23,59,59,999);
+            break;
+          }
+          case 'This Month': {
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            break;
+          }
+          case 'This Quarter': {
+            const quarter = Math.floor(now.getMonth() / 3);
+            start = new Date(now.getFullYear(), quarter * 3, 1);
+            end = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
+            break;
+          }
+          case 'This Year': {
+            start = new Date(now.getFullYear(), 0, 1);
+            end = new Date(now.getFullYear(), 12, 0);
+            break;
+          }
+          case 'Custom': {
+            start = startStr ? new Date(startStr) : new Date();
+            end = endStr ? new Date(endStr) : new Date();
+            break;
+          }
+        }
+        
+        const formatDate = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+        
+        return {
+          start: formatDate(start),
+          end: formatDate(end)
+        };
+      }, []);
+
+      const formatCurrencyValue = useCallback((val) => {
+        if (val === null || val === undefined) return '...';
+        const converted = currency === 'USD' ? val / 50 : val;
+        if (currency === 'USD') {
+          return converted.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
+        return `${converted.toLocaleString(undefined, { minimumFractionDigits: 2 })} EGP`;
+      }, [currency]);
+
+      const loadDashboard = useCallback(async () => {
+        if (!connected) return;
+        setLoading(true);
+        setDashboardDataLoading(true);
+        setError(null);
+        try {
+          const range = calculateDateRange(datePreset, customStartDate, customEndDate);
+          const monthStart = range.start;
+          const monthEnd = range.end;
+
+          // Fetch all 4 core datasets in parallel (and in full via fetchAllRecords)
+          const salesPromise = fetchAllRecords('sale.order', [
+            ['state', '=', 'sale'],
+            ['date_order', '>=', monthStart],
+            ['date_order', '<=', monthEnd]
+          ], ['name', 'partner_id', 'date_order', 'amount_total', 'state']);
+
+          const invoicesPromise = fetchAllRecords('account.move', [
+            ['move_type', 'in', ['out_invoice', 'in_invoice']],
+            ['state', '=', 'posted'],
+            ['invoice_date', '>=', monthStart],
+            ['invoice_date', '<=', monthEnd]
+          ], ['name', 'partner_id', 'invoice_date', 'amount_total', 'payment_state', 'state']);
+
+          const customersPromise = fetchAllRecords('res.partner', [
+            ['customer_rank', '>', 0]
+          ], ['name', 'email', 'customer_rank']);
+
+          const productsPromise = fetchAllRecords('product.product', [], ['name', 'list_price', 'standard_price', 'qty_available']);
+
+          // Fetch unpaid invoices directly as before
+          const unpaidPromise = searchRecords('account.move', [
+            ['move_type', 'in', ['out_invoice', 'in_invoice']],
+            ['payment_state', '!=', 'paid'],
+            ['state', '=', 'posted']
+          ], ['name', 'amount_total', 'partner_id', 'payment_state'], 200);
+
+          // Optional widgets
+          const runPurchase = addedWidgets.includes('purchase_orders');
+          const purchasePromise = runPurchase ? searchRecords('purchase.order', [
+            ['state', 'in', ['purchase', 'done']],
+            ['date_order', '>=', monthStart],
+            ['date_order', '<=', monthEnd]
+          ], ['amount_total']) : Promise.resolve([]);
+
+          const runOverdue = addedWidgets.includes('overdue_invoices');
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const overduePromise = runOverdue ? searchRecords('account.move', [
+            ['move_type', '=', 'out_invoice'],
+            ['state', '=', 'posted'],
+            ['payment_state', '!=', 'paid'],
+            ['invoice_date_due', '<', todayStr]
+          ], ['amount_total']) : Promise.resolve([]);
+
+          const [sales, invoices, customers, products, unpaid, purchase, overdue] = await Promise.all([
+            salesPromise, invoicesPromise, customersPromise, productsPromise, unpaidPromise,
+            purchasePromise, overduePromise
+          ]);
+
+          // Save to raw states for export
+          setRawSales(sales);
+          setRawInvoices(invoices);
+          setRawCustomers(customers);
+          setRawProducts(products);
+
+          const isRealName = (name) => {
+            if (!name) return false;
+            const clean = name.trim();
+            return !/^\+?\d+$/.test(clean) && !/^[\d\s\-+]+$/.test(clean);
+          };
+          const realCustomers = customers.filter(c => isRealName(c.name)).slice(0, 8);
+
+          const poCount = purchase.length;
+          const poTotal = purchase.reduce((s, r) => s + (r.amount_total || 0), 0);
+
+          const stValue = products.reduce((s, p) => {
+            const qty = p.qty_available || 0;
+            const price = p.standard_price || p.list_price || 0;
+            return s + (qty * price);
+          }, 0);
+
+          const odCount = overdue.length;
+          const odTotal = overdue.reduce((s, r) => s + (r.amount_total || 0), 0);
+
+          setStats({
+            salesCount: sales.length,
+            salesTotal: sales.reduce((s, r) => s + (r.amount_total || 0), 0),
+            unpaidCount: unpaid.length,
+            unpaidTotal: unpaid.reduce((s, r) => s + (r.amount_total || 0), 0),
+            customerCount: customers.filter(c => isRealName(c.name)).length,
+            productCount: products.length,
+            purchaseCount: poCount,
+            purchaseTotal: poTotal,
+            stockValue: stValue,
+            overdueCount: odCount,
+            overdueTotal: odTotal
+          });
+
+          setTopCustomers(realCustomers);
+          
+          // Sort and slice invoices for dashboard table
+          const sortedInvoices = [...invoices].sort((a, b) => {
+            return new Date(b.invoice_date || 0) - new Date(a.invoice_date || 0);
+          }).slice(0, 10);
+          setRecentInvoices(sortedInvoices);
+
+          setDashboardDataLoading(false);
+        } catch (e) {
+          setError(e.message);
+        }
+        setLoading(false);
+      }, [connected, datePreset, customStartDate, customEndDate, addedWidgets, calculateDateRange]);
+
+      useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+      const cleanDataForExport = (rawArray) => {
+        const isUsd = currency === 'USD';
+        return rawArray.map(row => {
+          const newRow = {};
+          Object.entries(row).forEach(([key, val]) => {
+            if (key === 'id' || key.startsWith('__')) return;
+            let formattedVal = val;
+            if (Array.isArray(val)) {
+              formattedVal = val[1] || val[0] || '';
+            } else if (val === null || val === undefined || val === false) {
+              formattedVal = '';
+            } else {
+              formattedVal = val;
+            }
+            if (typeof formattedVal === 'number' && isUsd) {
+              const isAmt = key && (key.includes('amount') || key.includes('price') || key.includes('value') || key.includes('total'));
+              if (isAmt) {
+                formattedVal = formattedVal / 50;
+              }
+            }
+            newRow[key] = formattedVal;
+          });
+          return newRow;
+        });
+      };
+
+      const handleDashboardExcelClick = () => {
+        if (dashboardDataLoading || !rawSales || !rawInvoices || !rawCustomers || !rawProducts) return;
+
+        const range = calculateDateRange(datePreset, customStartDate, customEndDate);
+        const monthStart = range.start;
+        const monthEnd = range.end;
+
+        const salesData = cleanDataForExport(rawSales);
+        const invoicesData = cleanDataForExport(rawInvoices);
+
+        const partnerSales = {};
+        rawSales.forEach(order => {
+          if (order.partner_id) {
+            const pId = Array.isArray(order.partner_id) ? order.partner_id[0] : order.partner_id;
+            if (!partnerSales[pId]) {
+              partnerSales[pId] = { totalSales: 0, orderCount: 0 };
+            }
+            partnerSales[pId].totalSales += order.amount_total || 0;
+            partnerSales[pId].orderCount += 1;
+          }
+        });
+
+        const isRealName = (name) => {
+          if (!name) return false;
+          const clean = name.trim();
+          return !/^\+?\d+$/.test(clean) && !/^[\d\s\-+]+$/.test(clean);
+        };
+
+        const isUsd = currency === 'USD';
+        const rate = isUsd ? 50 : 1;
+        const curSuffix = isUsd ? 'USD' : 'EGP';
+
+        const customersData = rawCustomers
+          .filter(c => isRealName(c.name))
+          .map(c => {
+            const partnerStats = partnerSales[c.id] || { totalSales: 0, orderCount: 0 };
+            return {
+              Name: c.name,
+              Email: c.email || '',
+              Rank: c.customer_rank || 0,
+              [`Total Confirmed Sales (${curSuffix})`]: partnerStats.totalSales / rate,
+              'Sales Order Count': partnerStats.orderCount
+            };
+          });
+
+        const productsData = rawProducts.map(p => ({
+          Name: p.name,
+          [`Sale Price (${curSuffix})`]: (p.list_price || 0) / rate,
+          [`Cost Price (${curSuffix})`]: (p.standard_price || 0) / rate,
+          'Quantity Available': p.qty_available || 0,
+          [`Stock Value (${curSuffix})`]: ((p.qty_available || 0) * (p.standard_price || p.list_price || 0)) / rate
+        }));
+
+        const kpiSummary = [
+          { 'Metric Name': 'Date Range Start', 'Value': monthStart },
+          { 'Metric Name': 'Date Range End', 'Value': monthEnd },
+          { 'Metric Name': 'Total Sales Count', 'Value': stats.salesCount },
+          { 'Metric Name': `Total Sales Amount (${currency})`, 'Value': currency === 'USD' ? stats.salesTotal / 50 : stats.salesTotal },
+          { 'Metric Name': 'Unpaid Invoices Count', 'Value': stats.unpaidCount },
+          { 'Metric Name': `Unpaid Invoices Amount (${currency})`, 'Value': currency === 'USD' ? stats.unpaidTotal / 50 : stats.unpaidTotal },
+          { 'Metric Name': 'Active Customers Count', 'Value': stats.customerCount },
+          { 'Metric Name': 'Total Products Count', 'Value': stats.productCount },
+        ];
+        if (addedWidgets.includes('purchase_orders')) {
+          kpiSummary.push({ 'Metric Name': 'Purchase Orders Count', 'Value': stats.purchaseCount });
+          kpiSummary.push({ 'Metric Name': `Purchase Orders Total (${currency})`, 'Value': currency === 'USD' ? stats.purchaseTotal / 50 : stats.purchaseTotal });
+        }
+        if (addedWidgets.includes('stock_value')) {
+          kpiSummary.push({ 'Metric Name': `Stock Value (${currency})`, 'Value': currency === 'USD' ? stats.stockValue / 50 : stats.stockValue });
+        }
+        if (addedWidgets.includes('overdue_invoices')) {
+          kpiSummary.push({ 'Metric Name': 'Overdue Invoices Count', 'Value': stats.overdueCount });
+          kpiSummary.push({ 'Metric Name': `Overdue Invoices Total (${currency})`, 'Value': currency === 'USD' ? stats.overdueTotal / 50 : stats.overdueTotal });
+        }
+
+        exportDashboardExcel(salesData, invoicesData, customersData, productsData, kpiSummary);
+      };
+
+
+      const COLORS = ['#875a7b', '#00a09d', '#3498db', '#f0ad4e', '#e74c3c', '#a06090', '#533483', '#2d2d4e'];
+
+      const renderCustomerChart = () => {
+        const chartData = topCustomers.map(c => ({
+          name: c.name?.substring(0, 18),
+          rank: c.customer_rank || 0,
+          value: c.customer_rank || 0
+        }));
+        
+        const tooltipStyle = {
+          background: '#0f3460',
+          border: '1px solid #875a7b',
+          borderRadius: '8px',
+          color: '#ffffff'
+        };
+        
+        if (customerChartType === 'Bar') {
+          return (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d2d4e" />
+                <XAxis dataKey="name" tick={{ fill: '#c0c0c0', fontSize: 11 }} angle={-20} textAnchor="end" height={60} />
+                <YAxis tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend formatter={(value) => <span className="text-white text-xs font-semibold">{value}</span>} />
+                <Bar name="Customer Rank" dataKey="rank" fill="#875a7b" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        }
+        
+        if (customerChartType === 'Line') {
+          return (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d2d4e" />
+                <XAxis dataKey="name" tick={{ fill: '#c0c0c0', fontSize: 11 }} angle={-20} textAnchor="end" height={60} />
+                <YAxis tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend formatter={(value) => <span className="text-white text-xs font-semibold">{value}</span>} />
+                <Line name="Customer Rank" type="monotone" dataKey="rank" stroke="#875a7b" strokeWidth={2} activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          );
+        }
+        
+        const innerRadius = customerChartType === 'Donut' ? 60 : 0;
+        return (
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%" cy="50%" innerRadius={innerRadius} outerRadius={100}
+                paddingAngle={3} dataKey="rank"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend formatter={(value) => <span className="text-white text-xs font-semibold">{value}</span>} />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+      };
+
+      const renderInvoiceChart = () => {
+        const counts = {};
+        recentInvoices.forEach(inv => {
+          const s = inv.payment_state || 'unknown';
+          counts[s] = (counts[s] || 0) + 1;
+        });
+        const chartData = Object.entries(counts).map(([name, value]) => ({ name, value }));
+        
+        const tooltipStyle = {
+          background: '#0f3460',
+          border: '1px solid #875a7b',
+          borderRadius: '8px',
+          color: '#ffffff'
+        };
+        
+        if (invoiceChartType === 'Bar') {
+          return (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d2d4e" />
+                <XAxis dataKey="name" tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend formatter={(value) => <span className="text-white text-xs font-semibold">{value}</span>} />
+                <Bar name="Invoice Count" dataKey="value" fill="#00a09d" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        }
+        
+        if (invoiceChartType === 'Line') {
+          return (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d2d4e" />
+                <XAxis dataKey="name" tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend formatter={(value) => <span className="text-white text-xs font-semibold">{value}</span>} />
+                <Line name="Invoice Count" type="monotone" dataKey="value" stroke="#00a09d" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          );
+        }
+        
+        const innerRadius = invoiceChartType === 'Donut' ? 60 : 0;
+        return (
+          <ResponsiveContainer width="100%" height={260}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%" cy="50%" innerRadius={innerRadius} outerRadius={100}
+                paddingAngle={3} dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend formatter={(value) => <span className="text-white text-xs font-semibold">{value}</span>} />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+      };
+
+      if (!connected) {
+        return (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center glass-card rounded-2xl p-10">
+              <div className="text-6xl mb-4">🔌</div>
+              <h2 className="text-xl font-semibold text-navy-100 mb-2">Not Connected</h2>
+              <p className="text-navy-300">Waiting for Odoo connection to load dashboard data…</p>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex-1 overflow-y-auto p-6 fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+              <p className="text-sm text-navy-300 mt-1">Live data from {getCompanyName()} Odoo</p>
+            </div>
+            <div className="flex items-center gap-3 no-print">
+              <button
+                onClick={handleDashboardExcelClick}
+                disabled={dashboardDataLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-odoo-purple text-white hover:bg-odoo-purpleLight hover:scale-[1.02] active:scale-95 transition-all duration-200 text-sm font-semibold shadow-md disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+              >
+                {dashboardDataLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Export Excel'
+                )}
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-transparent border border-odoo-purple text-odoo-purple hover:bg-odoo-purple hover:text-white hover:scale-[1.02] active:scale-95 transition-all duration-200 text-sm font-semibold"
+              >
+                Export PDF
+              </button>
+              <button onClick={loadDashboard} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-odoo-border bg-odoo-bgSecondary text-odoo-textSecondary hover:text-white hover:scale-[1.02] active:scale-95 transition-all text-sm">
+                {Icons.refresh} Refresh
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-4 rounded-xl bg-odoo-danger/10 border border-odoo-danger/30 text-red-300 text-sm flex items-center gap-2 no-print">
+              {Icons.warning} {error}
+            </div>
+          )}
+
+          {/* Customization Filter Bar */}
+          <div className="bg-odoo-bgSecondary border border-odoo-border rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center justify-between no-print">
+            {/* Date Range Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider">Date Range:</span>
+              <select
+                value={datePreset}
+                onChange={(e) => setDatePreset(e.target.value)}
+                className="rounded-lg px-3 py-1.5 bg-[#16213e] border border-odoo-border text-white text-sm focus:outline-none focus:ring-1 focus:ring-odoo-purple cursor-pointer"
+              >
+                <option value="This Week">This Week</option>
+                <option value="This Month">This Month</option>
+                <option value="This Quarter">This Quarter</option>
+                <option value="This Year">This Year</option>
+                <option value="Custom">Custom Range</option>
+              </select>
+              
+              {datePreset === 'Custom' && (
+                <div className="flex items-center gap-2 ml-2">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="rounded-lg px-2 py-1 bg-[#16213e] border border-odoo-border text-white text-xs focus:outline-none"
+                  />
+                  <span className="text-odoo-textSecondary text-xs">to</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="rounded-lg px-2 py-1 bg-[#16213e] border border-odoo-border text-white text-xs focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Visible Cards */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider">Toggle KPI Cards:</span>
+              <div className="flex flex-wrap gap-3 text-xs">
+                {Object.keys(visibleCards).map(key => (
+                  <label key={key} className="flex items-center gap-1.5 cursor-pointer select-none text-odoo-textSecondary hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={visibleCards[key]}
+                      onChange={() => setVisibleCards(prev => ({ ...prev, [key]: !prev[key] }))}
+                      className="rounded border-odoo-border bg-odoo-bgPrimary text-odoo-purple focus:ring-0 cursor-pointer"
+                    />
+                    <span className="capitalize">{key === 'sales' ? 'Sales' : key === 'invoices' ? 'Invoices' : key === 'customers' ? 'Customers' : 'Products'}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Currency Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider">Currency:</span>
+              <div className="flex rounded-lg bg-odoo-bgPrimary p-0.5 border border-odoo-border">
+                <button
+                  onClick={() => setCurrency('EGP')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${currency === 'EGP' ? 'bg-odoo-purple text-white shadow' : 'text-odoo-textSecondary hover:text-white'}`}
+                >
+                  EGP
+                </button>
+                <button
+                  onClick={() => setCurrency('USD')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${currency === 'USD' ? 'bg-odoo-purple text-white shadow' : 'text-odoo-textSecondary hover:text-white'}`}
+                >
+                  USD
+                </button>
+              </div>
+            </div>
+
+            {/* Add Widget Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAddWidgetDropdown(!showAddWidgetDropdown)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-odoo-purple text-odoo-purpleLight hover:bg-odoo-purple hover:text-white text-xs font-semibold transition-all hover:scale-[1.02]"
+              >
+                <span>+ Add Widget</span>
+              </button>
+              {showAddWidgetDropdown && (
+                <div className="absolute right-0 mt-2 w-56 rounded-lg bg-[#16213e] border border-odoo-border p-3 shadow-xl z-30">
+                  <div className="text-xs font-semibold text-odoo-textSecondary mb-2 uppercase tracking-wider border-b border-odoo-border pb-1">Select KPI Widgets</div>
+                  <div className="space-y-2 text-xs text-white">
+                    {[
+                      { id: 'purchase_orders', label: 'Total Purchase Orders' },
+                      { id: 'stock_value', label: 'Stock Value' },
+                      { id: 'overdue_invoices', label: 'Overdue Invoices' }
+                    ].map(widget => {
+                      const added = addedWidgets.includes(widget.id);
+                      return (
+                        <label key={widget.id} className="flex items-center gap-2 cursor-pointer hover:text-white select-none">
+                          <input
+                            type="checkbox"
+                            checked={added}
+                            onChange={() => {
+                              if (added) {
+                                setAddedWidgets(prev => prev.filter(id => id !== widget.id));
+                              } else {
+                                setAddedWidgets(prev => [...prev, widget.id]);
+                              }
+                            }}
+                            className="rounded border-odoo-border bg-odoo-bgPrimary text-odoo-purple focus:ring-0 cursor-pointer"
+                          />
+                          <span>{widget.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {visibleCards.sales && (
+              <div onClick={() => onTriggerChat("اعرض مبيعات الشهر")} className="cursor-pointer">
+                <StatCard
+                  title="Sales This Month"
+                  value={loading ? '...' : stats.salesCount}
+                  subtitle={loading ? '' : `Total: ${formatCurrencyValue(stats.salesTotal)}`}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>}
+                  color="teal"
+                  loading={loading}
+                />
+              </div>
+            )}
+            {visibleCards.invoices && (
+              <div onClick={() => onTriggerChat("اعرض الفواتير الغير مدفوعة")} className="cursor-pointer">
+                <StatCard
+                  title="Unpaid Invoices"
+                  value={loading ? '...' : stats.unpaidCount}
+                  subtitle={loading ? '' : `Total: ${formatCurrencyValue(stats.unpaidTotal)}`}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
+                  color="coral"
+                  loading={loading}
+                />
+              </div>
+            )}
+            {visibleCards.customers && (
+              <div onClick={() => onTriggerChat("اعرض العملاء")} className="cursor-pointer">
+                <StatCard
+                  title="Active Customers"
+                  value={loading ? '...' : stats.customerCount}
+                  subtitle="With customer rank > 0"
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>}
+                  color="blue"
+                  loading={loading}
+                />
+              </div>
+            )}
+            {visibleCards.products && (
+              <div onClick={() => onTriggerChat("اعرض المنتجات")} className="cursor-pointer">
+                <StatCard
+                  title="Products"
+                  value={loading ? '...' : stats.productCount}
+                  subtitle="Catalog items"
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>}
+                  color="gold"
+                  loading={loading}
+                />
+              </div>
+            )}
+
+            {/* Custom Added Widgets */}
+            {addedWidgets.includes('purchase_orders') && (
+              <div onClick={() => onTriggerChat("اعرض أوامر الشراء")} className="cursor-pointer">
+                <StatCard
+                  title="Total Purchase Orders"
+                  value={loading ? '...' : stats.purchaseCount}
+                  subtitle={loading ? '' : `Total: ${formatCurrencyValue(stats.purchaseTotal)}`}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>}
+                  color="teal"
+                  loading={loading}
+                />
+              </div>
+            )}
+
+            {addedWidgets.includes('stock_value') && (
+              <div onClick={() => onTriggerChat("اعرض قيمة المخزون")} className="cursor-pointer">
+                <StatCard
+                  title="Stock Value"
+                  value={loading ? '...' : 'In Stock'}
+                  subtitle={loading ? '' : `Value: ${formatCurrencyValue(stats.stockValue)}`}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>}
+                  color="gold"
+                  loading={loading}
+                />
+              </div>
+            )}
+
+            {addedWidgets.includes('overdue_invoices') && (
+              <div onClick={() => onTriggerChat("اعرض الفواتير المتأخرة")} className="cursor-pointer">
+                <StatCard
+                  title="Overdue Invoices"
+                  value={loading ? '...' : stats.overdueCount}
+                  subtitle={loading ? '' : `Total: ${formatCurrencyValue(stats.overdueTotal)}`}
+                  icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>}
+                  color="coral"
+                  loading={loading}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Top Customers Chart */}
+            <div className="odoo-card rounded-2xl p-5 shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Top Customers by Rank</h3>
+                <div className="flex rounded-xl bg-odoo-bgPrimary p-0.5 border border-odoo-border no-print">
+                  {['Bar', 'Line', 'Pie', 'Donut'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setCustomerChartType(type)}
+                      className={`px-2.5 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${customerChartType === type ? 'bg-odoo-purple text-white shadow' : 'text-odoo-textSecondary hover:text-white'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {loading ? (
+                <div className="h-64 shimmer rounded-xl" />
+              ) : topCustomers.length > 0 ? (
+                renderCustomerChart()
+              ) : (
+                <div className="h-64 flex items-center justify-center text-odoo-textMuted">No customer data</div>
+              )}
+            </div>
+
+            {/* Invoice Status Chart */}
+            <div className="odoo-card rounded-2xl p-5 shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Recent Invoices by Status</h3>
+                <div className="flex rounded-xl bg-odoo-bgPrimary p-0.5 border border-odoo-border no-print">
+                  {['Bar', 'Line', 'Pie', 'Donut'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setInvoiceChartType(type)}
+                      className={`px-2.5 py-0.5 rounded-lg text-[10px] font-semibold transition-all ${invoiceChartType === type ? 'bg-odoo-purple text-white shadow' : 'text-odoo-textSecondary hover:text-white'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {loading ? (
+                <div className="h-64 shimmer rounded-xl" />
+              ) : recentInvoices.length > 0 ? (
+                renderInvoiceChart()
+              ) : (
+                <div className="h-64 flex items-center justify-center text-odoo-textMuted">No invoice data</div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Invoices Table */}
+          {recentInvoices.length > 0 && (
+            <div className="odoo-card rounded-2xl p-5 shadow-md">
+              <h3 className="text-sm font-semibold text-white mb-3">Recent Invoices</h3>
+              <DataTable data={recentInvoices} currency={currency} modelName="account.move" />
+            </div>
+          )}
+        </div>
+      );
+    }
+    function ConnectionPage({ status, error, sessionData, onRetry, settings, onSaveSettings, onResetSettings }) {
+      const [formUrl, setFormUrl] = useState(settings.url);
+      const [formLogin, setFormLogin] = useState(settings.login);
+      const [formPassword, setFormPassword] = useState(settings.password);
+      const [formDb, setFormDb] = useState(settings.db || '');
+      const [formAnthropicApiKey, setFormAnthropicApiKey] = useState(settings.anthropicApiKey || '');
+
+      useEffect(() => {
+        setFormUrl(settings.url);
+        setFormLogin(settings.login);
+        setFormPassword(settings.password);
+        setFormDb(settings.db || '');
+        setFormAnthropicApiKey(settings.anthropicApiKey || '');
+      }, [settings]);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        onSaveSettings({
+          url: formUrl.trim(),
+          login: formLogin.trim(),
+          password: formPassword,
+          db: formDb.trim(),
+          anthropicApiKey: formAnthropicApiKey.trim(),
+        });
+      };
+
+      return (
+        <div className="flex-1 overflow-y-auto p-6 fade-in">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Connection Settings</h1>
+              <p className="text-sm text-odoo-textSecondary mt-1">Configure Odoo ERP Credentials</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Connection Settings Form */}
+            <div className="odoo-card rounded-2xl p-6 shadow-lg">
+              <h3 className="text-base font-semibold text-white mb-4">Odoo Server Connection</h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider mb-2">Odoo URL</label>
+                  <input
+                    type="url"
+                    required
+                    value={formUrl}
+                    onChange={(e) => setFormUrl(e.target.value)}
+                    placeholder="https://yourcompany.odoo.com"
+                    className="w-full rounded-xl px-4 py-2.5 bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider mb-2">Email / Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={formLogin}
+                    onChange={(e) => setFormLogin(e.target.value)}
+                    placeholder="user@yourcompany.com"
+                    className="w-full rounded-xl px-4 py-2.5 bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider mb-2">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl px-4 py-2.5 bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider mb-2">Database Name (Optional)</label>
+                  <input
+                    type="text"
+                    value={formDb}
+                    onChange={(e) => setFormDb(e.target.value)}
+                    placeholder="Auto-detected if blank"
+                    className="w-full rounded-xl px-4 py-2.5 bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all text-sm font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider mb-2">Anthropic API Key (Optional)</label>
+                  <input
+                    type="password"
+                    value={formAnthropicApiKey}
+                    onChange={(e) => setFormAnthropicApiKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    className="w-full rounded-xl px-4 py-2.5 bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all text-sm font-mono"
+                  />
+                  <p className="text-[10px] text-odoo-textMuted mt-1">If provided, queries are parsed dynamically via Claude 3.5 Sonnet. Otherwise, local pattern matching is used.</p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-odoo-purple text-white font-semibold hover:bg-odoo-purpleLight hover:shadow-lg hover:shadow-odoo-purple/25 hover:scale-[1.02] active:scale-95 transition-all text-sm shadow-md"
+                  >
+                    Save & Connect
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onResetSettings}
+                    className="px-4 py-2.5 rounded-xl bg-transparent border border-odoo-danger text-odoo-danger hover:bg-odoo-danger hover:text-white hover:scale-[1.02] active:scale-95 transition-all text-sm font-semibold"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Connection Status and Details */}
+            <div className="space-y-6">
+              <div className="odoo-card rounded-2xl p-6 shadow-lg">
+                <h3 className="text-base font-semibold text-white mb-4">Status & Diagnostics</h3>
+                
+                <div className="flex items-center gap-4 mb-5">
+                  <div className={`w-3.5 h-3.5 rounded-full ${
+                    status === 'connected' ? 'bg-odoo-success pulse-dot' :
+                    status === 'connecting' ? 'bg-odoo-warning pulse-dot' :
+                    'bg-odoo-danger'
+                  }`} />
+                  <h2 className="text-base font-semibold text-white">
+                    {status === 'connected' ? 'Connected to ERP Instance' :
+                     status === 'connecting' ? 'Connecting to Odoo...' :
+                     'Disconnected / Error'}
+                  </h2>
+                </div>
+
+                {status === 'connected' && sessionData ? (
+                  <div className="space-y-3 text-sm border-t border-odoo-border pt-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-odoo-textSecondary w-32">User:</span>
+                      <span className="text-odoo-success font-semibold">{sessionData.userName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-odoo-textSecondary w-32">User ID:</span>
+                      <span className="text-white font-mono bg-odoo-bgPrimary/50 px-2 py-0.5 rounded border border-odoo-border">{sessionData.uid}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-odoo-textSecondary w-32">Database:</span>
+                      <span className="text-white font-mono bg-odoo-bgPrimary/50 px-2 py-0.5 rounded border border-odoo-border">{sessionData.db}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-odoo-textSecondary w-32">Active URL:</span>
+                      <span className="text-white font-mono text-xs truncate max-w-xs">{currentConfig.url}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-odoo-textSecondary border-t border-odoo-border pt-4">
+                    Connect to query your Odoo databases and interact with the AI assistant.
+                  </p>
+                )}
+
+                {error && (
+                  <div className="mt-4 p-4 rounded-xl bg-odoo-danger/10 border border-odoo-danger/30">
+                    <h4 className="text-odoo-danger text-xs font-semibold mb-2 flex items-center gap-2">{Icons.warning} Diagnostic Log</h4>
+                    <pre className="text-white/85 text-xs whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">{error}</pre>
+                  </div>
+                )}
+              </div>
+
+              {/* CORS Proxy Info */}
+              <div className="odoo-card-light rounded-2xl p-6 shadow-md">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Local CORS Proxy Status</h3>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                    useProxy ? 'bg-odoo-success/20 text-odoo-success' : 'bg-odoo-warning/20 text-odoo-warning'
+                  }`}>
+                    {useProxy ? 'Detected & Active' : 'Not Detected'}
+                  </span>
+                </div>
+                <p className="text-xs text-odoo-textSecondary leading-relaxed mb-3">
+                  To avoid cross-origin (CORS) blocks and support Two-Factor Authentication (TOTP) codes directly from the browser, we route Odoo calls through a helper local script on port 3001.
+                </p>
+                <div className="bg-odoo-bgPrimary/60 p-3 rounded-xl border border-odoo-border font-mono text-xs text-white/90">
+                  <div className="flex justify-between">
+                    <span>CORS Proxy URL:</span>
+                    <span className="text-odoo-success font-semibold">http://localhost:3001</span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span>Targeting Host:</span>
+                    <span className="text-odoo-success font-semibold truncate max-w-[180px]">{currentConfig.url}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function formatOdooDateTime(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      const ss = String(date.getSeconds()).padStart(2, '0');
+      return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+    }
+
+    const groupPosData = (orders, period, customStart, customEnd) => {
+      const groups = {};
+
+      const getSubPeriodLabel = (dateStr) => {
+        const cleanedStr = dateStr.replace(' ', 'T');
+        const d = new Date(cleanedStr);
+        if (isNaN(d.getTime())) return 'Other';
+
+        if (period === 'Day') {
+          const hr = String(d.getHours()).padStart(2, '0');
+          return `${hr}:00`;
+        } else if (period === 'Week') {
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          return days[d.getDay()];
+        } else if (period === 'Month') {
+          return String(d.getDate());
+        } else if (period === 'Quarter' || period === 'Year') {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return months[d.getMonth()];
+        } else {
+          // Custom
+          const s = new Date(customStart);
+          const e = new Date(customEnd);
+          const diffTime = Math.abs(e - s);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays <= 2) {
+            const hr = String(d.getHours()).padStart(2, '0');
+            return `${hr}:00`;
+          } else if (diffDays <= 45) {
+            return `${d.getMonth() + 1}/${d.getDate()}`;
+          } else {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return months[d.getMonth()];
+          }
+        }
+      };
+
+      // Initialize groups for correct ordering
+      if (period === 'Day') {
+        for (let i = 0; i < 24; i++) {
+          groups[`${String(i).padStart(2, '0')}:00`] = 0;
+        }
+      } else if (period === 'Week') {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        days.forEach(day => { groups[day] = 0; });
+      } else if (period === 'Quarter') {
+        const now = new Date();
+        const q = Math.floor(now.getMonth() / 3);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for (let i = q * 3; i < (q + 1) * 3; i++) {
+          groups[months[i]] = 0;
+        }
+      } else if (period === 'Year') {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        months.forEach(m => { groups[m] = 0; });
+      }
+
+      orders.forEach(order => {
+        const label = getSubPeriodLabel(order.date_order);
+        groups[label] = (groups[label] || 0) + (order.amount_total || 0);
+      });
+
+      return Object.entries(groups).map(([label, amount]) => ({
+        label,
+        amount,
+      }));
+    };
+
+    // ─── POS Reports Component ───────────────────────────────────────────
+    function PosReports({ connected, currency }) {
+      const [period, setPeriod] = useState('Month');
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [orders, setOrders] = useState([]);
+      
+      const getInitDates = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const start = `${y}-${m}-01`;
+        const end = `${y}-${m}-${String(new Date(y, now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+        return { start, end };
+      };
+      const initDates = getInitDates();
+      const [startDate, setStartDate] = useState(initDates.start);
+      const [endDate, setEndDate] = useState(initDates.end);
+
+      const loadReports = useCallback(async () => {
+        if (!connected) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const now = new Date();
+          let start = new Date();
+          let end = new Date();
+          let isCustom = false;
+
+          switch (period) {
+            case 'Day': {
+              start.setHours(0,0,0,0);
+              end = new Date(start);
+              end.setDate(start.getDate() + 1);
+              break;
+            }
+            case 'Week': {
+              const day = now.getDay();
+              const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+              start = new Date(now.setDate(diff));
+              start.setHours(0,0,0,0);
+              end = new Date(start);
+              end.setDate(start.getDate() + 7);
+              break;
+            }
+            case 'Month': {
+              start = new Date(now.getFullYear(), now.getMonth(), 1);
+              end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+              break;
+            }
+            case 'Quarter': {
+              const q = Math.floor(now.getMonth() / 3);
+              start = new Date(now.getFullYear(), q * 3, 1);
+              end = new Date(now.getFullYear(), (q + 1) * 3, 1);
+              break;
+            }
+            case 'Year': {
+              start = new Date(now.getFullYear(), 0, 1);
+              end = new Date(now.getFullYear() + 1, 0, 1);
+              break;
+            }
+            case 'Custom': {
+              isCustom = true;
+              break;
+            }
+          }
+
+          let domain = [['state', 'in', ['paid', 'done', 'invoiced']]];
+          if (isCustom) {
+            domain.push(['date_order', '>=', `${startDate} 00:00:00`]);
+            domain.push(['date_order', '<=', `${endDate} 23:59:59`]);
+          } else {
+            domain.push(['date_order', '>=', formatOdooDateTime(start)]);
+            domain.push(['date_order', '<', formatOdooDateTime(end)]);
+          }
+
+          const fields = ['name', 'date_order', 'amount_total', 'partner_id', 'state', 'session_id', 'pos_reference'];
+          const data = await fetchAllRecords('pos.order', domain, fields, 'date_order desc');
+          setOrders(data);
+        } catch (e) {
+          setError(e.message);
+        }
+        setLoading(false);
+      }, [connected, period, startDate, endDate]);
+
+      useEffect(() => {
+        loadReports();
+      }, [loadReports]);
+
+      // Calculate totals
+      const totalAmount = orders.reduce((sum, o) => sum + (o.amount_total || 0), 0);
+      const orderCount = orders.length;
+      const averageValue = orderCount > 0 ? totalAmount / orderCount : 0;
+
+      const formatValue = (v) => {
+        const converted = currency === 'USD' ? v / 50 : v;
+        if (currency === 'USD') {
+          return converted.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
+        return `${converted.toLocaleString(undefined, { minimumFractionDigits: 2 })} EGP`;
+      };
+
+      const chartData = useMemo(() => {
+        return groupPosData(orders, period, startDate, endDate);
+      }, [orders, period, startDate, endDate]);
+
+      return (
+        <div className="flex-1 overflow-y-auto p-6 fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">POS Cashier Reports</h1>
+              <p className="text-sm text-odoo-textSecondary mt-1">Live point of sale analytics</p>
+            </div>
+            <button onClick={loadReports} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-odoo-border bg-odoo-bgSecondary text-odoo-textSecondary hover:text-white hover:scale-[1.02] active:scale-95 transition-all text-sm">
+              {Icons.refresh} Refresh
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-4 rounded-xl bg-odoo-danger/10 border border-odoo-danger/30 text-red-300 text-sm flex items-center gap-2">
+              {Icons.warning} {error}
+            </div>
+          )}
+
+          {/* Filter Bar */}
+          <div className="bg-odoo-bgSecondary border border-odoo-border rounded-xl p-4 mb-6 flex flex-wrap gap-6 items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-odoo-textSecondary uppercase tracking-wider">Period:</span>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="rounded-lg px-3 py-1.5 bg-[#16213e] border border-odoo-border text-white text-sm focus:outline-none focus:ring-1 focus:ring-odoo-purple cursor-pointer"
+              >
+                <option value="Day">Today / اليوم</option>
+                <option value="Week">This Week / هذا الأسبوع</option>
+                <option value="Month">This Month / هذا الشهر</option>
+                <option value="Quarter">This Quarter / الربع الحالي</option>
+                <option value="Year">This Year / هذه السنة</option>
+                <option value="Custom">Custom Range / فترة مخصصة</option>
+              </select>
+
+              {period === 'Custom' && (
+                <div className="flex items-center gap-2 ml-2">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="rounded-lg px-2 py-1 bg-[#16213e] border border-odoo-border text-white text-xs focus:outline-none"
+                  />
+                  <span className="text-odoo-textSecondary text-xs">to</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="rounded-lg px-2 py-1 bg-[#16213e] border border-odoo-border text-white text-xs focus:outline-none"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="stat-card bg-[#0f3460] rounded-xl p-5 border-l-4 border-l-odoo-success border-r border-y border-odoo-border">
+              <div className="text-sm font-semibold text-odoo-textSecondary mb-2">Total POS Sales</div>
+              {loading ? <div className="h-8 w-24 shimmer rounded-lg" /> : <div className="text-3xl font-bold text-white">{formatValue(totalAmount)}</div>}
+            </div>
+            <div className="stat-card bg-[#0f3460] rounded-xl p-5 border-l-4 border-l-odoo-info border-r border-y border-odoo-border">
+              <div className="text-sm font-semibold text-odoo-textSecondary mb-2">Number of Orders</div>
+              {loading ? <div className="h-8 w-24 shimmer rounded-lg" /> : <div className="text-3xl font-bold text-white">{orderCount}</div>}
+            </div>
+            <div className="stat-card bg-[#0f3460] rounded-xl p-5 border-l-4 border-l-odoo-warning border-r border-y border-odoo-border">
+              <div className="text-sm font-semibold text-odoo-textSecondary mb-2">Average Order Value</div>
+              {loading ? <div className="h-8 w-24 shimmer rounded-lg" /> : <div className="text-3xl font-bold text-white">{formatValue(averageValue)}</div>}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="odoo-card rounded-2xl p-5 shadow-md mb-8">
+            <h3 className="text-sm font-semibold text-white mb-4">POS Sales by Sub-period</h3>
+            {loading ? (
+              <div className="h-64 shimmer rounded-xl" />
+            ) : chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2d2d4e" />
+                  <XAxis dataKey="label" tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                  <YAxis tick={{ fill: '#c0c0c0', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: '#0f3460', border: '1px solid #875a7b', borderRadius: '8px', color: '#ffffff' }} />
+                  <Bar name="Sales Amount" dataKey="amount" fill="#875a7b" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-odoo-textMuted">No POS sales in this period</div>
+            )}
+          </div>
+
+          {/* Orders Table */}
+          {!loading && orders.length > 0 && (
+            <div className="odoo-card rounded-2xl p-5 shadow-md">
+              <h3 className="text-sm font-semibold text-white mb-3">POS Orders List</h3>
+              <DataTable data={orders} currency={currency} modelName="pos.order" title="POS Orders" />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── Chat Interface ──────────────────────────────────────────────────
+    function ChatInterface({ connected, settings, pendingChatQuery, clearPendingChatQuery, currency, onRtlChange }) {
+      const [messages, setMessages] = useState([
+        {
+          role: 'bot',
+          text: 'مرحباً! أنا مساعد أودو الذكي 🤖\n\nI can query your Odoo ERP in Arabic or English. Try:\n\n• "اعرض فواتير المبيعات"\n• "الفواتير اللي لسه متدفعتش"\n• "أكبر 5 عملاء"\n• "مبيعات الشهر ده"\n• "Show all products"\n• "Unpaid invoices"',
+          data: null,
+          rtl: false,
+        },
+      ]);
+      const [input, setInput] = useState('');
+      const [isTyping, setIsTyping] = useState(false);
+      const scrollRef = useRef(null);
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, [messages, isTyping]);
+
+      const executeQuery = async (textToSubmit) => {
+        if (!textToSubmit) return;
+
+        const rtl = isArabic(textToSubmit);
+        setMessages(prev => [...prev, { role: 'user', text: textToSubmit, rtl }]);
+        setIsTyping(true);
+
+        if (!connected) {
+          setIsTyping(false);
+          setMessages(prev => [...prev, {
+            role: 'bot',
+            text: '⚠️ Not connected to Odoo. Please wait for the connection to establish or check the Connection tab.',
+            rtl: false,
+          }]);
+          return;
+        }
+
+        let parsedQuery = null;
+        let botText = '';
+        let queryData = null;
+        let tableTitle = '';
+        const apiKey = settings?.anthropicApiKey || '';
+
+        if (apiKey) {
+          try {
+            const response = await fetch(`${PROXY_URL}/proxy/anthropic/v1/messages`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 100000,
+                system: "You are an ERP accounting assistant connected to Odoo. Parse the user's request and return a JSON object with: {model, domain, fields, action, summary, order, limit}. If it is an Odoo search query, set action to 'query' and specify model, domain list, fields list, and optionally order string and limit number. If it is a greeting or general statement, set model to null, action to 'chat', and put your friendly conversational response in 'summary'. Always respond in the same language as the user (Arabic or English). Return ONLY the raw JSON string.",
+                messages: [{ role: 'user', content: textToSubmit }]
+              })
+            });
+            const data = await response.json();
+            if (data.content && data.content[0]) {
+              const reply = data.content[0].text;
+              const cleanText = reply.replace(/```json|```/g, '').trim();
+              parsedQuery = JSON.parse(cleanText);
+            } else if (data.error) {
+              throw new Error(data.error.message || 'Anthropic API error');
+            }
+          } catch (e) {
+            console.error('LLM Parsing failed, falling back to pattern matching:', e);
+          }
+        }
+
+        // Fallback to local pattern matching if LLM was not used or failed
+        if (!parsedQuery) {
+          const matched = interpretQuery(textToSubmit);
+          if (matched) {
+            parsedQuery = {
+              model: matched.model,
+              domain: matched.domain,
+              fields: matched.fields,
+              action: 'query',
+              summary: matched.label,
+              limit: matched.limit,
+              order: matched.order
+            };
+          }
+        }
+
+        if (!parsedQuery) {
+          setIsTyping(false);
+          setMessages(prev => [...prev, {
+            role: 'bot',
+            text: rtl
+              ? '🤔 مش فاهم الطلب ده. جرب حاجة زي:\n• "اعرض الفواتير"\n• "العملاء"\n• "المنتجات"\n• "مبيعات الشهر"\n• "فواتير غير مدفوعة"'
+              : '🤔 I didn\'t understand that request. Try:\n• "Show invoices"\n• "Unpaid invoices"\n• "Top 5 customers"\n• "Sales this month"\n• "Products"',
+            rtl,
+          }]);
+          return;
+        }
+
+        try {
+          if (parsedQuery.model && parsedQuery.action !== 'chat') {
+            const results = parsedQuery.limit
+              ? await searchRecords(parsedQuery.model, parsedQuery.domain, parsedQuery.fields, parsedQuery.limit, parsedQuery.order || '')
+              : await fetchAllRecords(parsedQuery.model, parsedQuery.domain, parsedQuery.fields, parsedQuery.order || '');
+
+            const count = results.length;
+            botText = parsedQuery.summary || (rtl
+              ? `✅ تم العثور على ${count} سجل في ${parsedQuery.model}`
+              : `✅ Found ${count} records in ${parsedQuery.model}`);
+            queryData = count > 0 ? results : null;
+            tableTitle = parsedQuery.summary || parsedQuery.model;
+          } else {
+            botText = parsedQuery.summary || (rtl ? 'مرحباً!' : 'Hello!');
+          }
+
+          setIsTyping(false);
+          setMessages(prev => [...prev, {
+            role: 'bot',
+            text: botText,
+            data: queryData,
+            tableTitle: tableTitle,
+            modelName: parsedQuery ? parsedQuery.model : null,
+            rtl,
+          }]);
+        } catch (e) {
+          setIsTyping(false);
+          setMessages(prev => [...prev, {
+            role: 'bot',
+            text: `❌ Error: ${e.message}`,
+            rtl: false,
+          }]);
+        }
+      };
+
+      const handleSend = () => {
+        const text = input.trim();
+        if (!text) return;
+        setInput('');
+        executeQuery(text);
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      };
+
+      useEffect(() => {
+        if (pendingChatQuery) {
+          setInput(pendingChatQuery);
+          executeQuery(pendingChatQuery);
+          clearPendingChatQuery();
+        }
+      }, [pendingChatQuery, clearPendingChatQuery]);
+
+      // Auto-detect RTL if any messages or current input is Arabic
+      useEffect(() => {
+        if (onRtlChange) {
+          if (input && isArabic(input)) {
+            onRtlChange(true);
+          } else {
+            const hasArabic = messages.some(msg => msg.rtl || isArabic(msg.text));
+            onRtlChange(hasArabic);
+          }
+        }
+      }, [input, messages, onRtlChange]);
+
+      const suggestions = [
+        'اعرض فواتير المبيعات',
+        'الفواتير الغير مدفوعة',
+        'أكبر 5 عملاء',
+        'المنتجات',
+        'Sales this month',
+      ];
+
+      return (
+        <div className="flex-1 flex flex-col overflow-hidden bg-odoo-bgPrimary">
+          {/* Chat messages */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg, i) => (
+              <div key={i} className={`msg-enter flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`} dir={msg.rtl ? 'rtl' : 'ltr'}>
+                <div className={`flex gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  {/* Avatar */}
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                    msg.role === 'user'
+                      ? 'bg-odoo-purple text-white shadow'
+                      : 'bg-odoo-bgSecondary border border-odoo-border text-odoo-purple'
+                  }`}>
+                    {msg.role === 'user' ? Icons.user : Icons.bot}
+                  </div>
+
+                  {/* Message bubble */}
+                  <div className={`px-4 py-3 ${
+                    msg.role === 'user'
+                      ? 'bg-odoo-purple text-white rounded-2xl border border-odoo-purpleLight/20 shadow-md'
+                      : `bg-[#0f3460] text-white rounded-xl ${msg.rtl ? 'border-r-4 border-r-odoo-purple border-y border-l border-odoo-border shadow-sm' : 'border-l-4 border-l-odoo-purple border-y border-r border-odoo-border shadow-sm'}`
+                  }`}>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                      {msg.text}
+                    </p>
+                    {msg.data && <DataTable data={msg.data} title={msg.tableTitle} rtl={msg.rtl} modelName={msg.modelName} currency={currency} />}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {isTyping && (
+              <div className="flex justify-start msg-enter">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-odoo-bgSecondary border border-odoo-border text-odoo-purple">
+                    {Icons.bot}
+                  </div>
+                  <div className="bg-[#0f3460] border-l-4 border-l-odoo-purple border-y border-r border-odoo-border rounded-xl px-5 py-4 flex items-center gap-1.5 shadow-sm">
+                    <div className="typing-dot w-2 h-2 rounded-full bg-odoo-purple" />
+                    <div className="typing-dot w-2 h-2 rounded-full bg-odoo-purple" />
+                    <div className="typing-dot w-2 h-2 rounded-full bg-odoo-purple" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick suggestions */}
+          <div className="px-4 py-2.5 flex gap-2 overflow-x-auto bg-[#17172c] border-t border-odoo-border">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => { setInput(s); inputRef.current?.focus(); }}
+                className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs border border-odoo-purple text-odoo-purpleLight hover:bg-odoo-purple hover:text-white transition-all whitespace-nowrap select-none font-semibold hover:scale-[1.02]"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          {/* Input area */}
+          <div className="p-4 border-t border-odoo-border bg-odoo-bgSecondary">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  id="chat-input"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="اكتب سؤالك... / Type your question..."
+                  rows={1}
+                  dir={isArabic(input) ? 'rtl' : 'ltr'}
+                  className="w-full resize-none rounded-xl px-4 py-3 bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all text-sm"
+                />
+              </div>
+              <button
+                onClick={handleSend}
+                disabled={!input.trim()}
+                id="send-button"
+                className="flex-shrink-0 w-11 h-11 rounded-xl bg-odoo-purple flex items-center justify-center text-white hover:bg-odoo-purpleLight transition-all duration-200 hover:scale-[1.02] disabled:opacity-35 disabled:hover:scale-100 disabled:bg-[#2d2d4e]"
+              >
+                {Icons.send}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── Main App ────────────────────────────────────────────────────────
+    function App() {
+      const [settings, setSettings] = useState(loadConnectionSettings());
+      const hasCredentials = settings.url && settings.login && settings.password;
+      const [activeTab, setActiveTab] = useState(hasCredentials ? 'chat' : 'connection');
+      const [connStatus, setConnStatus] = useState(hasCredentials ? 'connecting' : 'disconnected'); // connecting | connected | error | totp | disconnected
+      const [connError, setConnError] = useState(null);
+      const [sessionData, setSessionData] = useState(null);
+      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+      const [totpCode, setTotpCode] = useState('');
+      const [totpSubmitting, setTotpSubmitting] = useState(false);
+      const totpInputRef = useRef(null);
+
+      // Add state for clickable cards passing queries to Chat
+      const [pendingChatQuery, setPendingChatQuery] = useState(null);
+      const [currency, setCurrency] = useState('EGP'); // EGP | USD
+      const [isRtl, setIsRtl] = useState(false);
+
+      const handleTriggerChatQuery = (queryText) => {
+        setPendingChatQuery(queryText);
+        setActiveTab('chat');
+      };
+
+      const connect = useCallback(async (code = null) => {
+        setConnStatus(code ? 'connecting' : 'connecting');
+        setConnError(null);
+        try {
+          const result = await authenticate(code);
+          if (result.totp_required) {
+            setConnStatus('totp');
+            setConnError(result.message);
+            setTimeout(() => totpInputRef.current?.focus(), 200);
+            return;
+          }
+          setSessionData(result);
+          setConnStatus('connected');
+        } catch (e) {
+          setConnError(e.message);
+          setConnStatus('error');
+        }
+      }, []);
+
+      const handleTotpSubmit = useCallback(async () => {
+        if (!totpCode.trim() || totpCode.length < 6) return;
+        setTotpSubmitting(true);
+        try {
+          const result = await authenticate(totpCode.trim());
+          if (result.totp_required) {
+            setConnError('Invalid code. Please try again.');
+            setTotpCode('');
+            setTotpSubmitting(false);
+            return;
+          }
+          if (result.success) {
+            setSessionData(result);
+            setConnStatus('connected');
+            setTotpCode('');
+          } else {
+            setConnError('Authentication failed. Check code.');
+          }
+        } catch (e) {
+          setConnError(e.message);
+          setTotpCode('');
+        }
+        setTotpSubmitting(false);
+      }, [totpCode]);
+
+      useEffect(() => {
+        // Only auto-connect if we have saved credentials
+        if (settings.url && settings.login && settings.password) {
+          connect();
+        }
+      }, []);
+
+      const tabs = [
+        { id: 'chat', label: 'Chat', labelAr: 'المحادثة', icon: Icons.chat },
+        { id: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: Icons.dashboard },
+        { id: 'pos_reports', label: 'POS Reports', labelAr: 'تقارير الكاشير POS', icon: Icons.pos },
+        { id: 'connection', label: 'Connection', labelAr: 'الاتصال', icon: Icons.connection },
+      ];
+
+      return (
+        <div className="h-screen w-screen flex overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+
+          {/* ── TOTP Modal Overlay ───────────────────────────────────── */}
+          {connStatus === 'totp' && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
+              <div className="odoo-card rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl border border-odoo-border">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-odoo-purple/20 flex items-center justify-center text-odoo-purple">
+                    <svg className="w-8 h-8 text-odoo-purpleLight" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">Two-Factor Authentication</h2>
+                  <p className="text-sm text-odoo-textSecondary">
+                    Enter the 6-digit code from your Authenticator app
+                  </p>
+                </div>
+
+                {connError && connError !== 'Two-Factor Authentication detected. Please enter your 6-digit code.' && (
+                  <div className="mb-4 p-3 rounded-xl bg-odoo-danger/10 border border-odoo-danger/30 text-odoo-danger text-xs text-center">
+                    {connError}
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <input
+                    ref={totpInputRef}
+                    id="totp-input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleTotpSubmit(); }}
+                    placeholder="000000"
+                    className="w-full text-center text-3xl font-mono tracking-[0.5em] px-6 py-4 rounded-2xl bg-[#16213e] border border-odoo-border text-white placeholder-odoo-textMuted focus:outline-none input-glow transition-all"
+                  />
+                </div>
+
+                <button
+                  onClick={handleTotpSubmit}
+                  disabled={totpCode.length < 6 || totpSubmitting}
+                  id="totp-submit"
+                  className="w-full py-3.5 rounded-2xl bg-odoo-purple text-white font-semibold hover:bg-odoo-purpleLight hover:shadow-lg hover:shadow-odoo-purple/25 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {totpSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Verify & Connect
+                    </>
+                  )}
+                </button>
+
+                <p className="text-center text-xs text-odoo-textMuted mt-4">
+                  {getCompanyName()} — {settings.login}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Sidebar ─────────────────────────────────────────────────── */}
+          <aside className={`flex flex-col border-r rtl:border-r-0 rtl:border-l border-odoo-border bg-[#1d1d35] transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+            {/* Logo area */}
+            <div className="p-4 border-b border-odoo-border">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-odoo-purple flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && (
+                  <div className="min-w-0">
+                    <h1 className="text-sm font-bold text-white truncate">Odoo AI Assistant</h1>
+                    <p className="text-[10px] text-odoo-textSecondary truncate">{getCompanyName()}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 py-3 px-2 space-y-1">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  id={`nav-${tab.id}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`sidebar-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                    activeTab === tab.id
+                      ? 'active text-white font-medium'
+                      : 'text-odoo-textSecondary hover:text-white'
+                  }`}
+                >
+                  <span className="flex-shrink-0">{tab.icon}</span>
+                  {!sidebarCollapsed && <span>{tab.label}</span>}
+                </button>
+              ))}
+            </nav>
+
+            {/* User Profile Info (Odoo Bottom Bar style) */}
+            {!sidebarCollapsed && (
+              <div className="p-3 border-t border-odoo-border bg-[#17172c] flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-odoo-purple flex items-center justify-center font-bold text-white uppercase text-xs select-none">
+                  {sessionData ? sessionData.userName.substring(0, 2) : '??'}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">{sessionData ? sessionData.userName : (settings.login || 'Not connected')}</div>
+                  <div className="text-[9px] text-odoo-textSecondary truncate">Senior Accountant</div>
+                </div>
+              </div>
+            )}
+
+            {/* Collapse toggle */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-3 border-t border-odoo-border text-odoo-textSecondary hover:text-white transition-colors flex items-center justify-center"
+            >
+              <svg className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          </aside>
+
+          {/* ── Main Content ────────────────────────────────────────────── */}
+          <main className="flex-1 flex flex-col overflow-hidden bg-odoo-bgPrimary">
+            {/* Top bar */}
+            <header className="flex items-center justify-between px-6 py-3 border-b border-odoo-border bg-odoo-bgSecondary no-print">
+              {/* Breadcrumbs */}
+              <div className="flex items-center gap-2 text-sm text-odoo-textSecondary">
+                <span className="font-semibold text-white">{getCompanyName()}</span>
+                <span className="text-odoo-border">/</span>
+                <span className="text-odoo-purple font-semibold capitalize">{activeTab === 'chat' ? 'AI Chat' : activeTab === 'pos_reports' ? 'POS Reports' : activeTab}</span>
+              </div>
+              
+              {/* Right side connection info and user profile */}
+              <div className="flex items-center gap-4">
+                {/* Live Status Badge */}
+                <div className="flex items-center gap-2 px-2.5 py-1 bg-odoo-bgPrimary rounded-lg border border-odoo-border text-xs">
+                  <div className={`w-2 h-2 rounded-full ${connStatus === 'connected' ? 'bg-odoo-success pulse-dot' : 'bg-odoo-danger'}`} />
+                  <span className="text-white font-medium capitalize">{connStatus === 'connected' ? 'Live' : 'Offline'}</span>
+                </div>
+
+                {/* User Dropdown Preview */}
+                <div className="flex items-center gap-2 px-2.5 py-1 hover:bg-odoo-bgHover rounded-lg transition-all cursor-pointer select-none text-xs">
+                  <div className="w-5 h-5 rounded-full bg-odoo-purple flex items-center justify-center font-bold text-white uppercase text-[10px]">
+                    {sessionData ? sessionData.userName.substring(0, 2) : '??'}
+                  </div>
+                  <span className="text-odoo-textSecondary font-semibold">{sessionData ? sessionData.userName : (settings.login || 'Guest')}</span>
+                  <svg className="w-3 h-3 text-odoo-textSecondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </header>
+
+            {/* Tab content */}
+            {activeTab === 'chat' && (
+              <ChatInterface
+                connected={connStatus === 'connected'}
+                settings={settings}
+                pendingChatQuery={pendingChatQuery}
+                clearPendingChatQuery={() => setPendingChatQuery(null)}
+                currency={currency}
+                onRtlChange={setIsRtl}
+              />
+            )}
+            {activeTab === 'dashboard' && (
+              <Dashboard
+                connected={connStatus === 'connected'}
+                onTriggerChat={handleTriggerChatQuery}
+                currency={currency}
+                setCurrency={setCurrency}
+              />
+            )}
+            {activeTab === 'pos_reports' && (
+              <PosReports
+                connected={connStatus === 'connected'}
+                currency={currency}
+              />
+            )}
+            {activeTab === 'connection' && (
+              <ConnectionPage
+                status={connStatus}
+                error={connError}
+                sessionData={sessionData}
+                onRetry={() => connect()}
+                settings={settings}
+                onSaveSettings={(newSettings) => {
+                  setSettings(newSettings);
+                  currentConfig = newSettings;
+                  saveConnectionSettings(newSettings);
+                  connect();
+                }}
+                onResetSettings={() => {
+                  // Disconnect: clear all saved credentials
+                  localStorage.removeItem('odoo_connection_settings');
+                  const emptySettings = {
+                    url: '',
+                    login: '',
+                    password: '',
+                    db: '',
+                    anthropicApiKey: '',
+                  };
+                  setSettings(emptySettings);
+                  currentConfig = emptySettings;
+                  setSessionData(null);
+                  setConnStatus('disconnected');
+                  setConnError(null);
+                  setActiveTab('connection');
+                }}
+              />
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    // ─── Mount ───────────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
